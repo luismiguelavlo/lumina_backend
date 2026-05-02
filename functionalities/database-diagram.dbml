@@ -1,0 +1,347 @@
+// ══════════════════════════════════════════════
+//  Lumina Library — Database Diagram (DBML)
+//  Coherente con: migrations/001_initial_schema.sql + modelos GORM (internal/models).
+//  PK por defecto: uuid_generate_v4() con extensión uuid-ossp (no gen_random_uuid salvo que migres).
+//  https://dbdiagram.io
+// ══════════════════════════════════════════════
+
+// ─── ENUMS ────────────────────────────────────
+
+Enum user_role {
+  admin
+  librarian
+}
+
+Enum loan_status {
+  active
+  returned
+  overdue
+}
+
+Enum fine_status {
+  pending
+  paid
+  waived
+}
+
+Enum sanction_status {
+  active
+  lifted
+}
+
+Enum reputation_event_type {
+  book_returned_on_time
+  book_returned_late
+  badge_earned
+  streak_milestone
+  fine_paid
+  sanction_received
+}
+
+// ─── AUTENTICACIÓN ────────────────────────────
+
+Table users {
+  id            uuid         [pk, note: 'default uuid_generate_v4()']
+  email         varchar(255) [not null, unique]
+  password_hash text         [not null]
+  role          user_role    [not null, default: 'admin']
+  first_name    varchar(100) [not null]
+  last_name     varchar(100) [not null]
+  avatar_url    text
+  is_active     boolean      [not null, default: true, note: 'Cuenta staff activa']
+  created_at    timestamptz  [not null, default: `now()`]
+  updated_at    timestamptz  [not null, default: `now()`]
+
+  indexes {
+    email [unique]
+    role
+  }
+}
+
+Table revoked_tokens {
+  jti         varchar(36)  [pk]
+  user_id     uuid         [not null, ref: > users.id]
+  expires_at  timestamptz  [not null]
+  revoked_at  timestamptz  [not null, default: `now()`]
+
+  indexes {
+    expires_at
+    revoked_at
+    user_id
+  }
+}
+
+// ─── DEPARTAMENTOS ────────────────────────────
+
+Table departments {
+  id         uuid         [pk, note: 'default uuid_generate_v4()']
+  name       varchar(150) [not null, unique]
+  code       varchar(20)  [not null, unique]
+  created_at timestamptz  [not null, default: `now()`]
+
+  indexes {
+    name [unique]
+    code [unique]
+  }
+}
+
+// ─── ESTUDIANTES ──────────────────────────────
+// Migración además: índice GIN (pg_trgm) sobre (first_name || ' ' || last_name).
+
+Table students {
+  id                       uuid         [pk, note: 'default uuid_generate_v4()']
+  student_id_code          varchar(50)  [not null, unique, note: 'Matrícula. Ej: LUM-2024-001']
+  first_name               varchar(100) [not null]
+  last_name                varchar(100) [not null]
+  email                    varchar(255) [unique, note: 'Opcional en API; único si presente']
+  avatar_url               text
+  department_id            uuid         [ref: > departments.id, note: 'FK opcional; ON DELETE SET NULL']
+  degree_level             varchar(100) [note: 'Ej: Undergraduate Student']
+  major                    varchar(150)
+  expected_graduation_year int
+  is_active                boolean      [not null, default: true, note: 'false = baja lógica']
+  member_since             timestamptz  [not null, default: `now()`]
+  registered_by            uuid         [ref: > users.id, note: 'Staff que registró; nullable ON DELETE SET NULL']
+  created_at               timestamptz  [not null, default: `now()`]
+  updated_at               timestamptz  [not null, default: `now()`]
+
+  indexes {
+    student_id_code [unique]
+    email [unique]
+    department_id
+    is_active
+    created_at
+  }
+}
+
+// ─── CATÁLOGO DE LIBROS ───────────────────────
+// Migración: GIN trigram en books.title y authors.name.
+
+Table books {
+  id               uuid         [pk, note: 'default uuid_generate_v4()']
+  title            varchar(300) [not null]
+  isbn             varchar(20)  [not null, unique]
+  catalog_code     varchar(20)  [not null, unique, note: 'Ej: FIC-001']
+  synopsis         text
+  publication_year int
+  pages            int
+  cover_url        text
+  location         varchar(200) [note: 'Ubicación física']
+  total_copies     int          [not null, default: 1, note: 'CHECK >= 0']
+  deleted_at       timestamptz  [note: 'Soft delete GORM']
+  created_at       timestamptz  [not null, default: `now()`]
+  updated_at       timestamptz  [not null, default: `now()`]
+
+  indexes {
+    isbn [unique]
+    catalog_code [unique]
+    title
+  }
+}
+
+Table authors {
+  id         uuid         [pk, note: 'default uuid_generate_v4()']
+  name       varchar(200) [not null]
+  bio        text
+  created_at timestamptz  [not null, default: `now()`]
+
+  indexes {
+    name
+  }
+}
+
+Table genres {
+  id         uuid        [pk, note: 'default uuid_generate_v4()']
+  name       varchar(100) [not null, unique]
+  code       varchar(10)  [not null, unique, note: 'Ej: FIC, SCI']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    name [unique]
+    code [unique]
+  }
+}
+
+Table book_authors {
+  book_id   uuid [not null, ref: > books.id]
+  author_id uuid [not null, ref: > authors.id]
+
+  indexes {
+    (book_id, author_id) [pk]
+    author_id
+  }
+}
+
+Table book_genres {
+  book_id  uuid [not null, ref: > books.id]
+  genre_id uuid [not null, ref: > genres.id]
+
+  indexes {
+    (book_id, genre_id) [pk]
+    genre_id
+  }
+}
+
+// ─── PRÉSTAMOS ────────────────────────────────
+
+Table loans {
+  id          uuid         [pk, note: 'default uuid_generate_v4()']
+  book_id     uuid         [not null, ref: > books.id]
+  student_id  uuid         [not null, ref: > students.id]
+  issued_by   uuid         [ref: > users.id, note: 'Nullable; staff que registró el préstamo']
+  borrowed_at timestamptz  [not null, default: `now()`]
+  due_date    date         [not null]
+  returned_at timestamptz
+  status      loan_status  [not null, default: 'active']
+  notes       text         [note: 'Notas internas (SQL 001 + GORM)']
+  created_at  timestamptz  [not null, default: `now()`]
+  updated_at  timestamptz  [not null, default: `now()`]
+
+  indexes {
+    student_id
+    book_id
+    status
+    due_date [note: 'índice parcial WHERE status = active en migración']
+  }
+}
+
+// ─── MULTAS ───────────────────────────────────
+
+Table fines {
+  id         uuid        [pk, note: 'default uuid_generate_v4()']
+  loan_id    uuid        [not null, ref: > loans.id]
+  student_id uuid        [not null, ref: > students.id]
+  amount     decimal(10,2) [not null, note: 'CHECK >= 0']
+  status     fine_status [not null, default: 'pending']
+  reason     text
+  created_at timestamptz [not null, default: `now()`]
+  paid_at    timestamptz [note: 'Set cuando status = paid']
+
+  indexes {
+    student_id
+    status [note: 'índice parcial WHERE status = pending en migración']
+  }
+}
+
+// ─── SANCIONES ────────────────────────────────
+// Migración: idx_sanctions_active ON (student_id) WHERE status = 'active'.
+
+Table sanctions {
+  id         uuid             [pk, note: 'default uuid_generate_v4()']
+  student_id uuid             [not null, ref: > students.id]
+  reason     text             [not null]
+  status     sanction_status  [not null, default: 'active']
+  applied_at timestamptz      [not null, default: `now()`]
+  applied_by uuid             [ref: > users.id, note: 'Nullable ON DELETE SET NULL']
+  lifted_at  timestamptz
+  lifted_by  uuid             [ref: > users.id, note: 'Nullable']
+  created_at timestamptz      [not null, default: `now()`]
+
+  indexes {
+    student_id
+  }
+}
+
+// ─── REPUTACIÓN ───────────────────────────────
+
+Table reputation_events {
+  id           uuid                   [pk, note: 'default uuid_generate_v4()']
+  student_id   uuid                   [not null, ref: > students.id]
+  event_type   reputation_event_type  [not null]
+  points       int                    [not null, note: 'Delta +/−']
+  description  text
+  reference_id uuid                   [note: 'Idempotencia: loan_id (devolución), fine_id (paid), sanction_id, student_badges.id (badge); streak_milestone usa UUID derivado en app']
+  created_at   timestamptz            [not null, default: `now()`]
+
+  indexes {
+    student_id
+    created_at [note: 'ORDER BY created_at DESC']
+  }
+}
+
+Table student_stats {
+  id                  uuid        [pk, note: 'default uuid_generate_v4()']
+  student_id          uuid        [not null, unique, ref: - students.id, note: '1:1']
+  total_read          int         [not null, default: 0]
+  active_loans        int         [not null, default: 0]
+  overdue_count       int         [not null, default: 0]
+  current_streak_days int         [not null, default: 0]
+  longest_streak_days int         [not null, default: 0]
+  total_points        int         [not null, default: 0]
+  global_rank         int         [null, note: 'Persistido por job de app (sync con ranking); NULL si inactivo; ademas de la vista leaderboard']
+  updated_at          timestamptz [not null, default: `now()`]
+
+  indexes {
+    student_id [unique]
+    total_points [note: 'idx_student_stats_rank (ORDER BY total_points DESC)']
+  }
+}
+
+// ─── INSIGNIAS (BADGES) ───────────────────────
+
+Table badges {
+  id          uuid        [pk, note: 'default uuid_generate_v4()']
+  slug        varchar(50) [not null, unique, note: 'Ej: first-loan; CRUD staff /api/badges']
+  name        varchar(100) [not null]
+  description text
+  icon_url    text
+  criteria    text        [note: 'Descripción de cómo se obtiene']
+  created_at  timestamptz [not null, default: `now()`]
+
+  indexes {
+    slug [unique]
+  }
+}
+
+Table student_badges {
+  id         uuid        [pk, note: 'default uuid_generate_v4()']
+  student_id uuid        [not null, ref: > students.id]
+  badge_id   uuid        [not null, ref: > badges.id]
+  earned_at  timestamptz [not null, default: `now()`]
+
+  indexes {
+    (student_id, badge_id) [unique]
+    student_id
+  }
+}
+
+// ─── ACTIVITY LOG ─────────────────────────────
+
+Table activity_log {
+  id          uuid         [pk, note: 'default uuid_generate_v4()']
+  event_type  varchar(50)  [not null, note: 'Ej: book_returned']
+  title       varchar(200) [not null]
+  description text
+  student_id  uuid         [ref: > students.id]
+  actor_id    uuid         [ref: > users.id, note: 'Staff que originó el evento']
+  metadata    jsonb        [not null, default: '{}']
+  created_at  timestamptz  [not null, default: `now()`]
+
+  indexes {
+    created_at
+    event_type
+  }
+}
+
+// ─── VISTAS (definidas en migración SQL) ──────
+
+View book_availability {
+  book_id           uuid    [note: 'books.id']
+  title             varchar
+  catalog_code      varchar
+  total_copies      int
+  checked_out       int     [note: 'Préstamos active+overdue']
+  available_copies  int
+  status            varchar [note: 'available | borrowed']
+}
+
+View leaderboard {
+  student_id          uuid    [note: 'students.id']
+  first_name          varchar
+  last_name           varchar
+  avatar_url          text
+  total_points        int
+  books_read          int     [note: 'Alias de student_stats.total_read']
+  current_streak_days int
+  rank_position       int     [note: 'RANK() OVER (ORDER BY total_points DESC); en API pública']
+}

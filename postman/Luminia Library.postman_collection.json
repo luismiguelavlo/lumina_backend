@@ -1,0 +1,4188 @@
+{
+  "info": {
+    "_postman_id": "b4243993-b835-4ed3-b8fa-89ffc1ceb235",
+    "name": "Luminia Library",
+    "description": "Backend **Luminia Library** (Go, Gin, PostgreSQL). Incluye autenticación JWT (`/auth`), salud (`/health`), semilla opcional (`POST /setup/seed` si `ENABLE_PUBLIC_SEED=true`), **ranking público** (`GET /api/ranking/*` sin JWT), **catálogo**, **definiciones de insignias** (`/api/badges`), **estudiantes/departamentos**, **préstamos**, **multas**, **sanciones** y **analíticas** (`GET /api/analytics/dashboard`) bajo `/api/*` con staff (**admin** o **bibliotecario** — mismo permiso).\n\n### Servidor (variables de entorno, no Postman)\n- **Multa automática por devolución tardía:** `AUTO_LATE_RETURN_FINE_ENABLED` (`0`/`false`/`off` desactiva; por defecto activa). `AUTO_LATE_RETURN_FINE_AMOUNT` (importe, por defecto **5**). Tras `PATCH /api/loans/:id/return`, si la devolución es **después del día de vencimiento** (calendario) y no hay multa **pending** para ese préstamo, se crea una multa automática (ver *LOANS MODULE*).\n- **Ranking persistido:** el job del servidor actualiza periódicamente `student_stats.global_rank` (mismo orden que el leaderboard); no es un endpoint.\n\n### Convenciones (documentación Postman)\n- **Variables de colección:** `baseUrl`, `book_id`, `student_id`, `loan_id`, `fine_id`, `sanction_id`, `badge_id` / `badge_definition_id` (*LIST BADGES* o *CREATE BADGE DEFINITION* / seed).\n- **Variables de entorno:** `access_token`, `refresh_token`, `user_id` — *LOGIN USER*.\n- **Autenticación:** Bearer `{{access_token}}` en *CATALOG*, *BADGES*, *STUDENTS*, *LOANS*, *FINES*, *SANCTIONS*, *ANALYTICS*. *RANKING (público)* sin Bearer.\n- **Descripciones** Markdown + **Examples** (`response[]`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "17832534"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_author_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_genre_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "student_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "badge_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fine_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sanction_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "badge_definition_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "AUTH MODULE",
+      "item": [
+        {
+          "name": "REGISTER USER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {\r",
+                  "    pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "const jsonData = pm.response.json();\r",
+                  "\r",
+                  "// Validar estructura básica\r",
+                  "pm.test(\"Response has required fields\", function () {\r",
+                  "    pm.expect(jsonData).to.have.property(\"id\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"first_name\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"last_name\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"email\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"role\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"is_active\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"created_at\");\r",
+                  "});\r",
+                  "\r",
+                  "// Validar tipos de datos\r",
+                  "pm.test(\"Field types are correct\", function () {\r",
+                  "    pm.expect(jsonData.id).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.first_name).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.last_name).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.email).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.role).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.is_active).to.be.a(\"boolean\");\r",
+                  "    pm.expect(jsonData.created_at).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "// Validar valores específicos (opcional)\r",
+                  "pm.test(\"Validate specific values\", function () {\r",
+                  "    pm.expect(jsonData.is_active).to.eql(true);\r",
+                  "});\r",
+                  "\r",
+                  "// Validar formato de email\r",
+                  "pm.test(\"Email format is valid\", function () {\r",
+                  "    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\r",
+                  "    pm.expect(jsonData.email).to.match(emailRegex);\r",
+                  "});\r",
+                  "\r",
+                  "// Validar formato de fecha ISO 8601\r",
+                  "pm.test(\"created_at is a valid ISO date\", function () {\r",
+                  "    const date = new Date(jsonData.created_at);\r",
+                  "    pm.expect(date.toISOString()).to.exist;\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"first_name\": \"María\",\r\n  \"last_name\": \"García\",\r\n  \"email\": \"lmavendano97@outlook.es\",\r\n  \"password\": \"Lm3153592788*\",\r\n  \"role\": \"librariann\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"first_name\": \"María\",\r\n  \"last_name\": \"García\",\r\n  \"email\": \"lmavendano97@outlook.es\",\r\n  \"password\": \"Lm3153592788*\",\r\n  \"role\": \"librarian\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:20:11 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "207"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": \"b0e68a49-5c36-4aed-8116-e052dd0d3f9f\",\n    \"first_name\": \"María\",\n    \"last_name\": \"García\",\n    \"email\": \"lmavendano97@outlook.es\",\n    \"role\": \"librarian\",\n    \"is_active\": true,\n    \"created_at\": \"2026-04-14T20:20:11.097253-05:00\"\n}"
+            },
+            {
+              "name": "400 - Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"first_name\": \"María\",\r\n  \"last_name\": \"García\",\r\n  \"email\": \"lmavendano971@outlook.es\",\r\n  \"password\": \"Lm3153*\",\r\n  \"role\": \"librarian\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:21:19 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "89"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Errores de validación\",\n    \"errors\": {\n        \"Password\": \"longitud mínima no cumplida\"\n    }\n}"
+            },
+            {
+              "name": "400 - Bad Request (2)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"first_name\": \"María\",\r\n  \"last_name\": \"García\",\r\n  \"email\": \"lmavendano971@outlook.es\",\r\n  \"password\": \"Lm3153592788*\",\r\n  \"role\": \"librariann\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:21:51 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "75"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Errores de validación\",\n    \"errors\": {\n        \"Role\": \"valor no permitido\"\n    }\n}"
+            },
+            {
+              "name": "409 - Conflict",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"first_name\": \"María\",\r\n  \"last_name\": \"García\",\r\n  \"email\": \"lmavendano97@outlook.es\",\r\n  \"password\": \"Lm3153592788*\",\r\n  \"role\": \"librarian\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:20:39 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "34"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"El recurso ya existe\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "LOGIN USER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "const jsonData = pm.response.json();\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura\r",
+                  "// =========================\r",
+                  "pm.test(\"Response has required fields\", function () {\r",
+                  "    pm.expect(jsonData).to.have.property(\"access_token\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"refresh_token\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"expires_in\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"user\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar tipos\r",
+                  "// =========================\r",
+                  "pm.test(\"Field types are correct\", function () {\r",
+                  "    pm.expect(jsonData.access_token).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.refresh_token).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.expires_in).to.be.a(\"number\");\r",
+                  "    pm.expect(jsonData.user).to.be.an(\"object\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura user\r",
+                  "// =========================\r",
+                  "pm.test(\"User object is valid\", function () {\r",
+                  "    const user = jsonData.user;\r",
+                  "\r",
+                  "    pm.expect(user).to.have.property(\"id\");\r",
+                  "    pm.expect(user).to.have.property(\"first_name\");\r",
+                  "    pm.expect(user).to.have.property(\"last_name\");\r",
+                  "    pm.expect(user).to.have.property(\"email\");\r",
+                  "    pm.expect(user).to.have.property(\"role\");\r",
+                  "    pm.expect(user).to.have.property(\"is_active\");\r",
+                  "    pm.expect(user).to.have.property(\"created_at\");\r",
+                  "\r",
+                  "    pm.expect(user.id).to.be.a(\"string\");\r",
+                  "    pm.expect(user.first_name).to.be.a(\"string\");\r",
+                  "    pm.expect(user.last_name).to.be.a(\"string\");\r",
+                  "    pm.expect(user.email).to.be.a(\"string\");\r",
+                  "    pm.expect(user.role).to.be.a(\"string\");\r",
+                  "    pm.expect(user.is_active).to.be.a(\"boolean\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar formato email\r",
+                  "// =========================\r",
+                  "pm.test(\"Email format is valid\", function () {\r",
+                  "    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\r",
+                  "    pm.expect(jsonData.user.email).to.match(emailRegex);\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar UUID\r",
+                  "// =========================\r",
+                  "pm.test(\"User ID is valid UUID\", function () {\r",
+                  "    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\r",
+                  "    pm.expect(jsonData.user.id).to.match(uuidRegex);\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar fecha ISO\r",
+                  "// =========================\r",
+                  "pm.test(\"created_at is valid date\", function () {\r",
+                  "    const date = new Date(jsonData.user.created_at);\r",
+                  "    pm.expect(date.toISOString()).to.exist;\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar JWT estructura\r",
+                  "// =========================\r",
+                  "function isValidJWT(token) {\r",
+                  "    return token.split('.').length === 3;\r",
+                  "}\r",
+                  "\r",
+                  "pm.test(\"Access token is valid JWT format\", function () {\r",
+                  "    pm.expect(isValidJWT(jsonData.access_token)).to.be.true;\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Refresh token is valid JWT format\", function () {\r",
+                  "    pm.expect(isValidJWT(jsonData.refresh_token)).to.be.true;\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Decodificar JWT (sin validar firma)\r",
+                  "// =========================\r",
+                  "function parseJwt(token) {\r",
+                  "    return JSON.parse(atob(token.split('.')[1]));\r",
+                  "}\r",
+                  "\r",
+                  "const accessPayload = parseJwt(jsonData.access_token);\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar contenido del JWT\r",
+                  "// =========================\r",
+                  "pm.test(\"Access token payload has required fields\", function () {\r",
+                  "    pm.expect(accessPayload).to.have.property(\"sub\");\r",
+                  "    pm.expect(accessPayload).to.have.property(\"exp\");\r",
+                  "    pm.expect(accessPayload).to.have.property(\"iat\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar expiración\r",
+                  "// =========================\r",
+                  "pm.test(\"Access token is not expired\", function () {\r",
+                  "    const now = Math.floor(Date.now() / 1000);\r",
+                  "    pm.expect(accessPayload.exp).to.be.above(now);\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Guardar variables (para E2E)\r",
+                  "// =========================\r",
+                  "pm.environment.set(\"access_token\", jsonData.access_token);\r",
+                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);\r",
+                  "pm.environment.set(\"user_id\", jsonData.user.id);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"email\": \"lmavendano97@outlook.es\",\r\n    \"password\": \"Lm3153592788\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"email\": \"lmavendano97@outlook.es\",\r\n    \"password\": \"Lm3153592788*\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/login",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:39:45 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "855"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiJiMGU2OGE0OS01YzM2LTRhZWQtODExNi1lMDUyZGQwZDNmOWYiLCJqdGkiOiI0MDIyYmQ1My05Mjc2LTRkMTAtYWE5Mi1kM2ExNmI3MzI0NzkiLCJleHAiOjE3NzYyNTMxODUsImlhdCI6MTc3NjIxNzE4NSwibmJmIjoxNzc2MjE3MTg1fQ.Gj4el8_vjyn8aKJ2dt-m7h-ppH3QSRpvjFGfSBxF0AI\",\n    \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic3ViIjoiYjBlNjhhNDktNWMzNi00YWVkLTgxMTYtZTA1MmRkMGQzZjlmIiwianRpIjoiNjE1ZjI4ODktODk2NS00MzMwLTlkZDMtZTFjMmEyM2MyMDg3IiwiZXhwIjoxNzc2MjUzMTg1LCJpYXQiOjE3NzYyMTcxODUsIm5iZiI6MTc3NjIxNzE4NX0.OVpmwIZ93vqKMnfRfVZZZ1JHY0AZJ2JnJORQZl3xHTw\",\n    \"expires_in\": 36000,\n    \"user\": {\n        \"id\": \"b0e68a49-5c36-4aed-8116-e052dd0d3f9f\",\n        \"first_name\": \"María\",\n        \"last_name\": \"García\",\n        \"email\": \"lmavendano97@outlook.es\",\n        \"role\": \"librarian\",\n        \"is_active\": true,\n        \"created_at\": \"2026-04-14T20:20:11.097253-05:00\"\n    }\n}"
+            },
+            {
+              "name": "401 - Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"email\": \"lmavendano97@outlook.es\",\r\n    \"password\": \"Lm3153592788\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/login",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 01:41:37 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "37"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Credenciales inválidas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "REFRESH TOKEN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "const jsonData = pm.response.json();\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura\r",
+                  "// =========================\r",
+                  "pm.test(\"Response has required fields\", function () {\r",
+                  "    pm.expect(jsonData).to.have.property(\"access_token\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"refresh_token\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"expires_in\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"user\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar tipos\r",
+                  "// =========================\r",
+                  "pm.test(\"Field types are correct\", function () {\r",
+                  "    pm.expect(jsonData.access_token).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.refresh_token).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.expires_in).to.be.a(\"number\");\r",
+                  "    pm.expect(jsonData.user).to.be.an(\"object\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura user\r",
+                  "// =========================\r",
+                  "pm.test(\"User object is valid\", function () {\r",
+                  "    const user = jsonData.user;\r",
+                  "    pm.expect(user).to.have.property(\"id\");\r",
+                  "    pm.expect(user).to.have.property(\"first_name\");\r",
+                  "    pm.expect(user).to.have.property(\"last_name\");\r",
+                  "    pm.expect(user).to.have.property(\"email\");\r",
+                  "    pm.expect(user).to.have.property(\"role\");\r",
+                  "    pm.expect(user).to.have.property(\"is_active\");\r",
+                  "    pm.expect(user).to.have.property(\"created_at\");\r",
+                  "    pm.expect(user.id).to.be.a(\"string\");\r",
+                  "    pm.expect(user.first_name).to.be.a(\"string\");\r",
+                  "    pm.expect(user.last_name).to.be.a(\"string\");\r",
+                  "    pm.expect(user.email).to.be.a(\"string\");\r",
+                  "    pm.expect(user.role).to.be.a(\"string\");\r",
+                  "    pm.expect(user.is_active).to.be.a(\"boolean\");\r",
+                  "});\r",
+                  "\r",
+                  "function isValidJWT(token) {\r",
+                  "    return token.split('.').length === 3;\r",
+                  "}\r",
+                  "\r",
+                  "pm.test(\"Tokens are valid JWT format\", function () {\r",
+                  "    pm.expect(isValidJWT(jsonData.access_token)).to.be.true;\r",
+                  "    pm.expect(isValidJWT(jsonData.refresh_token)).to.be.true;\r",
+                  "});\r",
+                  "\r",
+                  "pm.environment.set(\"access_token\", jsonData.access_token);\r",
+                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);\r",
+                  "pm.environment.set(\"user_id\", jsonData.user.id);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"refresh_token\": \"{{refresh_token}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/auth/refresh",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic3ViIjoiYjBlNjhhNDktNWMzNi00YWVkLTgxMTYtZTA1MmRkMGQzZjlmIiwianRpIjoiNjE1ZjI4ODktODk2NS00MzMwLTlkZDMtZTFjMmEyM2MyMDg3IiwiZXhwIjoxNzc2MjUzMTg1LCJpYXQiOjE3NzYyMTcxODUsIm5iZiI6MTc3NjIxNzE4NX0.OVpmwIZ93vqKMnfRfVZZZ1JHY0AZJ2JnJORQZl3xHTw\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/refresh",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:00:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "920"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiJiMGU2OGE0OS01YzM2LTRhZWQtODExNi1lMDUyZGQwZDNmOWYiLCJqdGkiOiJuZXctYWNjZXNzLWp0aSIsImV4cCI6MTc3NjI1MzE4NSwiaWF0IjoxNzc2MjE3MTg1LCJuYmYiOjE3NzYyMTcxODV9.sign\",\n    \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic3ViIjoiYjBlNjhhNDktNWMzNi00YWVkLTgxMTYtZTA1MmRkMGQzZjlmIiwianRpIjoibmV3LXJlZnJlc2gtanRpIiwiZXhwIjoxNzc2MjUzMTg1LCJpYXQiOjE3NzYyMTcxODUsIm5iZiI6MTc3NjIxNzE4NX0.sign\",\n    \"expires_in\": 36000,\n    \"user\": {\n        \"id\": \"b0e68a49-5c36-4aed-8116-e052dd0d3f9f\",\n        \"first_name\": \"María\",\n        \"last_name\": \"García\",\n        \"email\": \"lmavendano97@outlook.es\",\n        \"role\": \"librarian\",\n        \"is_active\": true,\n        \"created_at\": \"2026-04-14T20:20:11.097253-05:00\"\n    }\n}"
+            },
+            {
+              "name": "400 - Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/refresh",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:01:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "120"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Errores de validación\",\n    \"errors\": {\n        \"RefreshToken\": \"campo obligatorio\"\n    }\n}"
+            },
+            {
+              "name": "401 - Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"refresh_token\": \"invalid.jwt.here\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/refresh",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:02:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "33"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Token inválido\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "LOGOUT USER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () {\r",
+                  "    pm.response.to.have.status(204);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Response has no JSON body\", function () {\r",
+                  "    pm.expect(pm.response.text()).to.be.empty;\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"refresh_token\": \"{{refresh_token}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/auth/logout",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "204 - No Content",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiJiMGU2OGE0OS01YzM2LTRhZWQtODExNi1lMDUyZGQwZDNmOWYiLCJqdGkiOiI0MDIyYmQ1My05Mjc2LTRkMTAtYWE5Mi1kM2ExNmI3MzI0NzkiLCJleHAiOjE3NzYyNTMxODUsImlhdCI6MTc3NjIxNzE4NSwibmJmIjoxNzc2MjE3MTg1fQ.Gj4el8_vjyn8aKJ2dt-m7h-ppH3QSRpvjFGfSBxF0AI",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJyZWZyZXNoIiwic3ViIjoiYjBlNjhhNDktNWMzNi00YWVkLTgxMTYtZTA1MmRkMGQzZjlmIiwianRpIjoiNjE1ZjI4ODktODk2NS00MzMwLTlkZDMtZTFjMmEyM2MyMDg3IiwiZXhwIjoxNzc2MjUzMTg1LCJpYXQiOjE3NzYyMTcxODUsIm5iZiI6MTc3NjIxNzE4NX0.OVpmwIZ93vqKMnfRfVZZZ1JHY0AZJ2JnJORQZl3xHTw\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/logout",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:10:00 GMT"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "401 - Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/auth/logout",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:11:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "33"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Token inválido\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET CURRENT USER (ME)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "const jsonData = pm.response.json();\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura\r",
+                  "// =========================\r",
+                  "pm.test(\"Response has required fields\", function () {\r",
+                  "    pm.expect(jsonData).to.have.property(\"id\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"first_name\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"last_name\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"email\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"role\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"is_active\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"created_at\");\r",
+                  "});\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar tipos\r",
+                  "// =========================\r",
+                  "pm.test(\"Field types are correct\", function () {\r",
+                  "    pm.expect(jsonData.id).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.first_name).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.last_name).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.email).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.role).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.is_active).to.be.a(\"boolean\");\r",
+                  "    pm.expect(jsonData.created_at).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"id is valid UUID\", function () {\r",
+                  "    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\r",
+                  "    pm.expect(jsonData.id).to.match(uuidRegex);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Email format is valid\", function () {\r",
+                  "    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\r",
+                  "    pm.expect(jsonData.email).to.match(emailRegex);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"created_at is valid ISO date\", function () {\r",
+                  "    const date = new Date(jsonData.created_at);\r",
+                  "    pm.expect(date.toISOString()).to.exist;\r",
+                  "});\r",
+                  "\r",
+                  "pm.environment.set(\"user_id\", jsonData.id);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/auth/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiJiMGU2OGE0OS01YzM2LTRhZWQtODExNi1lMDUyZGQwZDNmOWYiLCJqdGkiOiI0MDIyYmQ1My05Mjc2LTRkMTAtYWE5Mi1kM2ExNmI3MzI0NzkiLCJleHAiOjE3NzYyNTMxODUsImlhdCI6MTc3NjIxNzE4NSwibmJmIjoxNzc2MjE3MTg1fQ.Gj4el8_vjyn8aKJ2dt-m7h-ppH3QSRpvjFGfSBxF0AI",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:8080/auth/me",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:15:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "207"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": \"b0e68a49-5c36-4aed-8116-e052dd0d3f9f\",\n    \"first_name\": \"María\",\n    \"last_name\": \"García\",\n    \"email\": \"lmavendano97@outlook.es\",\n    \"role\": \"librarian\",\n    \"is_active\": true,\n    \"created_at\": \"2026-04-14T20:20:11.097253-05:00\"\n}"
+            },
+            {
+              "name": "404 - Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDEiLCJqdGkiOiJ4eHgiLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTc3NjIxNzE4NSwibmJmIjoxNzc2MjE3MTg1fQ.stub",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:8080/auth/me",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:17:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "42"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Usuario no encontrado\"\n}"
+            },
+            {
+              "name": "401 - Unauthorized",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:8080/auth/me",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:16:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "33"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Token inválido\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "API de usuarios del personal (admin / bibliotecario): registro, inicio de sesión con JWT (HS256), renovación de tokens, cierre de sesión con revocación en servidor y endpoint de comprobación del sujeto del token.\n\nFlujo típico: `POST /auth/register` → (cuenta puede quedar inactiva hasta activación) → `POST /auth/login` con email y contraseña → usar `access_token` en cabecera `Authorization: Bearer`  para rutas protegidas. Cuando el access caduque, `POST /auth/refresh` con `refresh_token` devuelve un par nuevo y el objeto `user` (mismo shape que en login). `POST /auth/logout` invalida el access (y opcionalmente el refresh) enviado.\n\nTokens: Tras login o refresh, la respuesta incluye `access_token`, `refresh_token`, `expires_in` (segundos de vida del access; en el servidor actual equivale a 10 horas) y `user`. Los JWT revocados o inválidos responden 401 con mensaje genérico de token inválido.\n\nErrores habituales: Cuerpo JSON `{ \"message\": \"...\" }`. Validación 400 (y a veces mapa `errors` por campo). Email duplicado en registro 409. Credenciales incorrectas o usuario inactivo en login 401. Conflictos de token 401 en refresh/logout según aplique. `GET /auth/me` devuelve el mismo perfil público que registro/login (`RegisterResponse`); si el usuario ya no existe en BD, 404.\n\n**Catálogo:** el módulo **CATALOG MODULE** (`/api/*`) usa el mismo `access_token` en **Bearer**; acepta staff **admin** o **librarian** (activo). Token inválido o usuario inactivo → **401**.\n\n**Estudiantes:** el módulo **STUDENTS MODULE** (`/api/students`, `/api/departments`) usa las mismas reglas de autenticación."
+    },
+    {
+      "name": "HEALTH MODULE",
+      "item": [
+        {
+          "name": "HEALTH CHECK",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "const jsonData = pm.response.json();\r",
+                  "\r",
+                  "// =========================\r",
+                  "// 🔹 Validar estructura\r",
+                  "// =========================\r",
+                  "pm.test(\"Response has required fields\", function () {\r",
+                  "    pm.expect(jsonData).to.have.property(\"status\");\r",
+                  "    pm.expect(jsonData).to.have.property(\"database\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Field types are correct\", function () {\r",
+                  "    pm.expect(jsonData.status).to.be.a(\"string\");\r",
+                  "    pm.expect(jsonData.database).to.be.a(\"string\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Service is healthy\", function () {\r",
+                  "    pm.expect(jsonData.status).to.eql(\"ok\");\r",
+                  "    pm.expect(jsonData.database).to.eql(\"ok\");\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:8080/health",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:20:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "42"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"database\": \"ok\",\n    \"status\": \"ok\"\n}"
+            },
+            {
+              "name": "503 - Service Unavailable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:8080/health",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 15 Apr 2026 02:21:00 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "120"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"database\": \"unreachable\",\n    \"error\": \"dial tcp 127.0.0.1:5432: connectex: No connection could be made...\",\n    \"status\": \"degraded\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "SETUP SEED (dev)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Carga datos de referencia idempotentes (departamentos, géneros, autores, libros demo, badges). **Solo si** en el servidor está `ENABLE_PUBLIC_SEED=true`; si no → **403**.\n\nNo requiere JWT. No usar en producción con la variable activada sin control.\n\n### Respuesta **200**\n`{ \"message\": \"...\", \"summary\": { ... } }`",
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/setup/seed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "setup",
+                "seed"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 403 or 500\", function () {",
+                  "    pm.expect([200, 403, 500]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    pm.test(\"Seed response shape\", function () {",
+                  "        pm.expect(j).to.have.property(\"message\");",
+                  "        pm.expect(j).to.have.property(\"summary\");",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        }
+      ],
+      "description": "Comprobación de disponibilidad del servicio y conectividad con PostgreSQL.\n\n`GET /health` no requiere autenticación. Respuesta **200** con `status: ok` y `database: ok` cuando la base responde al ping. Si la base no está accesible, respuesta **503** con `status: degraded`, `database: unreachable` y `error` con el detalle del fallo.\n\n**SETUP SEED:** `POST /setup/seed` sin cuerpo; requiere `ENABLE_PUBLIC_SEED=true` en el entorno del servidor."
+    },
+    {
+      "name": "RANKING MODULE (público)",
+      "description": "## Ranking (público, sin JWT)\n\nRutas bajo **`/api/ranking/*`** sin cabecera `Authorization`. Rate limit por IP según el servidor.\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/ranking/top3` | Top 3 lectores por puntos |\n| GET | `/api/ranking/leaderboard` | Clasificación; **`current_user`** si pasas **solo uno** de: `student_id`, `email`, `student_id_code` |\n\n### Query (`leaderboard`)\n| Parámetro | Descripción |\n|-----------|-------------|\n| `offset` | Desplazamiento (el servidor usa valores por defecto si omites; para la primera página usa **0**) |\n| `limit` | Tamaño 1–50 |\n| `student_id` | UUID (exclusivo con los otros dos) |\n| `email` | Email del estudiante |\n| `student_id_code` | Código institucional |\n\nMás de uno de `student_id` / `email` / `student_id_code` → **400**.",
+      "item": [
+        {
+          "name": "RANKING TOP 3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Devuelve `{ \"data\": [ { \"rank\", \"name\", \"points\", \"student_id\", \"avatar_url?\" } ] }` (hasta 3 elementos).",
+            "url": {
+              "raw": "{{baseUrl}}/api/ranking/top3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ranking",
+                "top3"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope has data array\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j.data).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/ranking/top3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ranking",
+                    "top3"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"rank\": 1,\n            \"name\": \"Ana Ruiz\",\n            \"points\": 120,\n            \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n            \"avatar_url\": null\n        }\n    ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "RANKING LEADERBOARD",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Listado paginado `{ \"data\": [...], \"current_user\": null | {...} }`. Opcional: añade **`student_id={{student_id}}`** (o solo `email` / solo `student_id_code`) para rellenar **`current_user`**.\n\nEjemplo: primera página con `offset=0` y `limit=20`.",
+            "url": {
+              "raw": "{{baseUrl}}/api/ranking/leaderboard?offset=0&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ranking",
+                "leaderboard"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento (>= 0)."
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página (1–50)."
+                },
+                {
+                  "key": "student_id",
+                  "value": "",
+                  "description": "Opcional. UUID; no combinar con email ni student_id_code.",
+                  "disabled": true
+                },
+                {
+                  "key": "email",
+                  "value": "",
+                  "description": "Opcional. No combinar con los otros dos.",
+                  "disabled": true
+                },
+                {
+                  "key": "student_id_code",
+                  "value": "",
+                  "description": "Opcional. No combinar con los otros dos.",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 400\", function () {",
+                  "    pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    pm.test(\"Leaderboard envelope\", function () {",
+                  "        pm.expect(j).to.have.property(\"data\");",
+                  "        pm.expect(j).to.have.property(\"current_user\");",
+                  "        pm.expect(j.data).to.be.an(\"array\");",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/ranking/leaderboard?offset=0&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "ranking",
+                    "leaderboard"
+                  ],
+                  "query": [
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"rank\": 1,\n            \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n            \"name\": \"Ana Ruiz\",\n            \"points\": 120,\n            \"books_read\": 5,\n            \"current_streak_days\": 3\n        }\n    ],\n    \"current_user\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CATALOG MODULE",
+      "description": "## Catálogo (staff: admin o librarian)\n\nEndpoints bajo **`/api/*`**: gestión de libros y listados de autores/géneros. Requieren **`Authorization: Bearer {{access_token}}`** y usuario staff **activo** con rol **`admin`** o **`librarian`** (mismos permisos). Token inválido/revocado, usuario inactivo o sin uno de esos roles → **401** `{ \"message\": \"Token inválido\" }`.\n\n### Flujo recomendado en Postman\n1. **LOGIN USER** con cuenta **admin** o **librarian**.\n2. **LIST AUTHORS** / **LIST GENRES** para copiar UUIDs.\n3. **CREATE BOOK** → la prueba guarda `book_id` en **variables de colección**.\n4. **LIST BOOKS**, **GET BOOK BY ID**, **UPDATE BOOK (PATCH)**, **DELETE BOOK** según necesites.\n\n### Paginación (`GET /api/books`)\n| Query | Descripción |\n|--------|-------------|\n| `limit` | Por defecto **20**, máximo **100** |\n| `offset` | Por defecto **0** |\n| `search` | Opcional: título, ISBN o nombre de autor (ILIKE) |\n\n### Cuerpos JSON\n- **Crear:** `title`, `isbn`, `catalog_code` obligatorios; `author_ids` / `genre_ids` arrays de UUID (pueden ir vacíos).\n- **Actualizar (PATCH/PUT):** todos los campos opcionales. Si envías `author_ids` o `genre_ids` (incluso `[]`), se **reemplazan** las relaciones; si omites la clave, no se tocan.\n\n### Códigos de error frecuentes\n| HTTP | Caso |\n|------|------|\n| **400** | Validación Gin; autor/género inexistente (`errors` por campo) |\n| **401** | Sin Bearer, JWT inválido/revocado, usuario inactivo o rol no permitido |\n| **404** | Libro inexistente o soft-deleted |\n| **409** | ISBN o `catalog_code` duplicado (`message`: recurso ya existe) |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST AUTHORS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Devuelve el catálogo de **autores** (`id`, `name`) para rellenar `author_ids` en crear/actualizar libro.\n\n### Respuesta\nArray JSON ordenado por nombre.\n\n### Códigos\n- **200** — OK\n- **401** — Token ausente/inválido, usuario inactivo o sin rol admin/librarian",
+            "url": {
+              "raw": "{{baseUrl}}/api/authors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "authors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Response is a non-empty array or empty catalog\", function () {",
+                  "        pm.expect(data).to.be.an(\"array\");",
+                  "    });",
+                  "    if (Array.isArray(data) && data.length > 0) {",
+                  "        pm.test(\"First author has id and name\", function () {",
+                  "            pm.expect(data[0]).to.have.property(\"id\");",
+                  "            pm.expect(data[0]).to.have.property(\"name\");",
+                  "        });",
+                  "        pm.collectionVariables.set(\"sample_author_id\", data[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/authors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "authors"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n    {\n        \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n        \"name\": \"Patrick Rothfuss\"\n    }\n]"
+            }
+          ]
+        },
+        {
+          "name": "LIST GENRES",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Devuelve el catálogo de **géneros** (`id`, `name`, `code`) para `genre_ids`.\n\n### Códigos\n- **200** | **401**",
+            "url": {
+              "raw": "{{baseUrl}}/api/genres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "genres"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Response is an array\", function () {",
+                  "        pm.expect(data).to.be.an(\"array\");",
+                  "    });",
+                  "    if (Array.isArray(data) && data.length > 0) {",
+                  "        pm.test(\"First genre has id, name, code\", function () {",
+                  "            pm.expect(data[0]).to.have.keys(\"id\", \"name\", \"code\");",
+                  "        });",
+                  "        pm.collectionVariables.set(\"sample_genre_id\", data[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/genres",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "genres"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n    {\n        \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n        \"name\": \"Fantasy\",\n        \"code\": \"FIC\"\n    }\n]"
+            }
+          ]
+        },
+        {
+          "name": "CREATE BOOK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Crea un libro. Tras éxito, la **prueba** guarda `book_id` en variables de colección.\n\n### Body (JSON)\n| Campo | Tipo | Obligatorio |\n|-------|------|-------------|\n| `title` | string | Sí |\n| `isbn` | string | Sí (único) |\n| `catalog_code` | string | Sí (único) |\n| `synopsis` | string | No |\n| `publication_year` | int | No |\n| `pages` | int ≥ 0 | No |\n| `cover_url` | URL | No |\n| `location` | string | No |\n| `total_copies` | int ≥ 0 | No (defecto **1**) |\n| `author_ids` | UUID[] | No |\n| `genre_ids` | UUID[] | No |\n\nUsa `{{sample_author_id}}` / `{{sample_genre_id}}` si ejecutaste antes LIST AUTHORS / LIST GENRES.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"El nombre del viento\",\n  \"isbn\": \"978-8401352836\",\n  \"catalog_code\": \"FIC-POSTMAN-001\",\n  \"synopsis\": \"Primera novela de la crónica del asesino de reyes.\",\n  \"publication_year\": 2007,\n  \"pages\": 662,\n  \"cover_url\": \"https://example.com/covers/name-of-the-wind.jpg\",\n  \"location\": \"Estantería A-3\",\n  \"total_copies\": 3,\n  \"author_ids\": [],\n  \"genre_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"book_id\", j.id);",
+                  "    pm.test(\"Book id is UUID\", function () {",
+                  "        pm.expect(j.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    });",
+                  "}",
+                  "pm.test(\"Status is 201 or error expected\", function () {",
+                  "    pm.expect([201, 400, 401, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Ejemplo\",\n  \"isbn\": \"978-0000000001\",\n  \"catalog_code\": \"CAT-001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/books",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"title\": \"Ejemplo\",\n    \"isbn\": \"978-0000000001\",\n    \"catalog_code\": \"CAT-001\",\n    \"total_copies\": 1,\n    \"status\": \"available\",\n    \"authors\": [],\n    \"genres\": [],\n    \"created_at\": \"2026-04-16T12:00:00Z\",\n    \"updated_at\": \"2026-04-16T12:00:00Z\"\n}"
+            },
+            {
+              "name": "409 - Conflict (duplicate ISBN)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"El recurso ya existe\"\n}"
+            },
+            {
+              "name": "401 - Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Token inválido\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "LIST BOOKS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Listado **resumido**: `id`, `cover_url`, `title`, `author` (nombres concatenados), `isbn`, `status` (`available` | `borrowed`).\n\n### Query params\nDocumentados en la pestaña **Params** de Postman.",
+            "url": {
+              "raw": "{{baseUrl}}/api/books?limit=20&offset=0&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página. Por defecto en servidor: **20**. Máximo **100**."
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento desde el inicio (paginación offset-based)."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Filtro opcional por título, ISBN o nombre de autor (coincidencia parcial, ILIKE)."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope has data and total\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j).to.have.property(\"total\");",
+                  "    pm.expect(j.data).to.be.an(\"array\");",
+                  "});",
+                  "if (j.data.length > 0) {",
+                  "    pm.test(\"List item shape\", function () {",
+                  "        const it = j.data[0];",
+                  "        [\"id\", \"title\", \"author\", \"isbn\", \"status\"].forEach((k) => pm.expect(it).to.have.property(k));",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n            \"cover_url\": \"https://example.com/c.jpg\",\n            \"title\": \"El nombre del viento\",\n            \"author\": \"Patrick Rothfuss\",\n            \"isbn\": \"978-8401352836\",\n            \"status\": \"available\"\n        }\n    ],\n    \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET BOOK BY ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Detalle completo del libro: metadatos, `status`, arreglos `authors` y `genres`, `location`.\n\nUsa la variable **`{{book_id}}`** (poblada por *CREATE BOOK*).",
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{book_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books",
+                "{{book_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const b = pm.response.json();",
+                  "    pm.test(\"Detail shape\", function () {",
+                  "        [\"id\", \"title\", \"isbn\", \"catalog_code\", \"total_copies\", \"status\", \"authors\", \"genres\", \"created_at\", \"updated_at\"].forEach((k) => pm.expect(b).to.have.property(k));",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books/:book_id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books",
+                    ":book_id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "book_id",
+                      "value": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"title\": \"El nombre del viento\",\n    \"isbn\": \"978-8401352836\",\n    \"catalog_code\": \"FIC-001\",\n    \"synopsis\": \"...\",\n    \"publication_year\": 2007,\n    \"pages\": 662,\n    \"cover_url\": \"https://example.com/c.jpg\",\n    \"location\": \"A-3\",\n    \"total_copies\": 3,\n    \"status\": \"available\",\n    \"authors\": [{\"id\": \"...\", \"name\": \"Patrick Rothfuss\"}],\n    \"genres\": [{\"id\": \"...\", \"name\": \"Fantasy\", \"code\": \"FIC\"}],\n    \"created_at\": \"2026-04-16T12:00:00Z\",\n    \"updated_at\": \"2026-04-16T12:00:00Z\"\n}"
+            },
+            {
+              "name": "404 - Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books/00000000-0000-0000-0000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books",
+                    "00000000-0000-0000-0000-000000000001"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Libro no encontrado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UPDATE BOOK (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Actualización **parcial**. Solo se actualizan campos presentes en el JSON. Ver *CREATE BOOK* para nombres de campos.\n\n**Relaciones:** si incluyes `author_ids` o `genre_ids`, sustituyen por completo las asociaciones actuales (un array vacío las deja sin enlaces).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"synopsis\": \"Sinopsis actualizada vía PATCH.\",\n  \"total_copies\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{book_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books",
+                "{{book_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 4xx\", function () {",
+                  "    pm.expect([200, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/books/{{book_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books",
+                    "{{book_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"title\": \"El nombre del viento\",\n    \"isbn\": \"978-8401352836\",\n    \"catalog_code\": \"FIC-POSTMAN-001\",\n    \"synopsis\": \"Sinopsis actualizada vía PATCH.\",\n    \"total_copies\": 5,\n    \"status\": \"available\",\n    \"authors\": [],\n    \"genres\": [],\n    \"created_at\": \"2026-04-16T12:00:00Z\",\n    \"updated_at\": \"2026-04-16T12:05:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UPDATE BOOK (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Misma semántica de fusión que **PATCH** en este backend (campos omitidos no se modifican). Útil si tu cliente distingue PUT vs PATCH.\n\n> Nota: Para reemplazar **todas** las columnas explícitamente, envía cada campo que deba conservarse o cambiarse.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"El nombre del viento (edición revisada)\",\n  \"isbn\": \"978-8401352836\",\n  \"catalog_code\": \"FIC-POSTMAN-001\",\n  \"synopsis\": \"Texto sincronizado con PUT.\",\n  \"publication_year\": 2007,\n  \"pages\": 662,\n  \"cover_url\": \"https://example.com/cover.jpg\",\n  \"location\": \"Estantería B-1\",\n  \"total_copies\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{book_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books",
+                "{{book_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE BOOK",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "**Soft delete:** marca `deleted_at`. Respuesta **204** sin cuerpo. Listados y GET posteriores tratan el libro como inexistente (**404**).",
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{book_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "books",
+                "{{book_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 or 404\", function () {",
+                  "    pm.expect([204, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "204 - No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/books/{{book_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "books",
+                    "{{book_id}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "plain",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "STUDENTS MODULE",
+      "description": "## Estudiantes y departamentos (staff)\n\nPatrons **sin login**: CRUD vía staff (`admin` / `librarian`), JWT **`{{access_token}}`** heredado en esta carpeta.\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/departments` | Catálogo para `department_id` |\n| GET | `/api/students` | Lista activos + `search` + paginación |\n| POST | `/api/students` | Alta (`registered_by` = usuario del token) |\n| GET | `/api/students/:id` | Detalle activo |\n| GET | `/api/students/:id/profile` | Stats, préstamos, insignias |\n| PATCH | `/api/students/:id` | Actualización parcial |\n| DELETE | `/api/students/:id` | Baja lógica (`is_active=false`) → **204** |\n| POST | `/api/students/:id/badges` | Otorgar insignia (`badge_id` UUID existente en `badges`); **misma URL** — además reputación **`badge_earned`** (+ puntos, idempotente por concesión) |\n\n### Variables\n- Tras **CREATE STUDENT**, la prueba guarda `student_id`.\n- Para **AWARD BADGE**, usa **`badge_id`** (UUID): *LIST BADGES* (*BADGES MODULE*), seed en BD, o *CREATE BADGE DEFINITION*.\n\n### Errores frecuentes\n| HTTP | Caso |\n|------|------|\n| **400** | Validación; departamento inexistente; insignia inexistente |\n| **401** | Sin token / token inválido / staff inactivo |\n| **404** | Estudiante inexistente o desactivado |\n| **409** | `student_id_code` o `email` duplicado; insignia ya concedida |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST DEPARTMENTS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Catálogo de **departamentos** (`id`, `name`, `code`) para asignar `department_id` al crear/editar estudiante.\n\n### Códigos\n- **200** | **401**",
+            "url": {
+              "raw": "{{baseUrl}}/api/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "departments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Response is array\", function () {",
+                  "    pm.expect(data).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/departments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "departments"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "[\n    {\n        \"id\": \"d1e2f3a4-b5c6-7890-def1-234567890abc\",\n        \"name\": \"Computer Science\",\n        \"code\": \"CS\"\n    }\n]"
+            }
+          ]
+        },
+        {
+          "name": "LIST STUDENTS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lista estudiantes **activos** (`is_active = true`), orden `created_at DESC`.\n\n### Query\n| Parámetro | Descripción |\n|-----------|-------------|\n| `limit` | Defecto **20**, máx. **100** |\n| `offset` | Defecto **0** |\n| `search` | Opcional: email, `student_id_code` o nombre (ILIKE) |\n\n### Respuesta\n`{ \"data\": [ StudentResponse... ], \"total\": N }`",
+            "url": {
+              "raw": "{{baseUrl}}/api/students?limit=20&offset=0&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página (máx. 100)."
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento para paginación."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Búsqueda por email, matrícula o nombre completo."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope data + total\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j).to.have.property(\"total\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/students?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n            \"student_id_code\": \"LUM-2026-001\",\n            \"first_name\": \"Ana\",\n            \"last_name\": \"Ruiz\",\n            \"email\": \"ana@university.edu\",\n            \"is_active\": true,\n            \"member_since\": \"2026-04-16T12:00:00Z\",\n            \"created_at\": \"2026-04-16T12:00:00Z\",\n            \"updated_at\": \"2026-04-16T12:00:00Z\"\n        }\n    ],\n    \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "CREATE STUDENT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Registra un estudiante activo. **`first_name`** y **`last_name`** son obligatorios.\n\n### `student_id_code` (opcional)\nSi no se envía, el servidor genera uno con formato **`AUTO-YYYYMMDD-<8hex>`** (único). Si lo envías, debe ser único en el sistema.\n\n### Otros campos\n- **`email`**: opcional; único si se envía.\n- **`avatar_url`**, **`department_id`** (UUID de *LIST DEPARTMENTS*), **`degree_level`**, **`major`**, **`expected_graduation_year`**: opcionales.\n\nTras **201**, la prueba guarda **`student_id`** en variables de colección.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ana\",\n  \"last_name\": \"Ruiz\",\n  \"email\": \"ana.ruiz.postman@example.com\",\n  \"degree_level\": \"Undergraduate Student\",\n  \"major\": \"Computer Science\",\n  \"expected_graduation_year\": 2028\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"student_id\", j.id);",
+                  "    pm.test(\"student_id is UUID\", function () {",
+                  "        pm.expect(j.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    });",
+                  "}",
+                  "pm.test(\"Status is 201 or client error\", function () {",
+                  "    pm.expect([201, 400, 401, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/students",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"student_id_code\": \"AUTO-20260418-a1b2c3d4\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Ruiz\",\n    \"email\": \"ana.ruiz.postman@example.com\",\n    \"is_active\": true,\n    \"member_since\": \"2026-04-16T12:00:00Z\",\n    \"created_at\": \"2026-04-16T12:00:00Z\",\n    \"updated_at\": \"2026-04-16T12:00:00Z\"\n}"
+            },
+            {
+              "name": "409 - Conflict",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/students",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"message\": \"El recurso ya existe\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET STUDENT BY ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Detalle de un estudiante **activo** (incluye `department_name` / `department_code` si hay FK).\n\nUsa **`{{student_id}}`** (p. ej. tras *CREATE STUDENT*).",
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{student_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students",
+                "{{student_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/students/{{student_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students",
+                    "{{student_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"student_id_code\": \"LUM-POSTMAN-001\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Ruiz\",\n    \"email\": \"ana@example.com\",\n    \"is_active\": true,\n    \"member_since\": \"2026-04-16T12:00:00Z\",\n    \"created_at\": \"2026-04-16T12:00:00Z\",\n    \"updated_at\": \"2026-04-16T12:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET STUDENT PROFILE",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Vista unificada: cabecera del estudiante, **`personal_stats`** (`student_stats` o ceros), **`loan_history`** (últimos préstamos con libro y autores), **`badge_gallery`** (todas las insignias + `earned`).\n\n### Query\n- **`loan_limit`**: cantidad máxima de préstamos en el historial (defecto **10**, máx. recomendado en servidor **50**).",
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{student_id}}/profile?loan_limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students",
+                "{{student_id}}",
+                "profile"
+              ],
+              "query": [
+                {
+                  "key": "loan_limit",
+                  "value": "10",
+                  "description": "Máximo de filas en loan_history (default 10 en API)."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const p = pm.response.json();",
+                  "    pm.test(\"Profile shape\", function () {",
+                  "        pm.expect(p).to.have.property(\"personal_stats\");",
+                  "        pm.expect(p).to.have.property(\"loan_history\");",
+                  "        pm.expect(p).to.have.property(\"badge_gallery\");",
+                  "        pm.expect(p.badge_gallery).to.have.property(\"total_badges\");",
+                  "        pm.expect(p.badge_gallery).to.have.property(\"earned_count\");",
+                  "        pm.expect(p.badge_gallery.badges).to.be.an(\"array\");",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/students/{{student_id}}/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students",
+                    "{{student_id}}",
+                    "profile"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"student_id_code\": \"LUM-POSTMAN-001\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Ruiz\",\n    \"member_since\": \"2026-04-16T12:00:00Z\",\n    \"personal_stats\": {\n        \"total_read\": 0,\n        \"active_loans\": 0,\n        \"overdue_count\": 0,\n        \"current_streak_days\": 0\n    },\n    \"loan_history\": [],\n    \"badge_gallery\": {\n        \"total_badges\": 6,\n        \"earned_count\": 0,\n        \"badges\": []\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH STUDENT",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Actualización **parcial**. Solo se modifican campos presentes en el JSON (mismos nombres que en crear, todos opcionales).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"major\": \"Software Engineering\",\n  \"expected_graduation_year\": 2029\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{student_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students",
+                "{{student_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 4xx\", function () {",
+                  "    pm.expect([200, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "AWARD BADGE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Asigna una fila en `student_badges`. Requiere **`{{badge_id}}`** válido (tabla `badges`). Si el estudiante ya tiene la insignia → **409**.\n\n### Body\n```json\n{ \"badge_id\": \"<uuid>\" }\n```\nSustituye por `{{badge_id}}` (p. ej. tras *LIST BADGES* o *CREATE BADGE DEFINITION* en **BADGES MODULE**).\n\n### Efecto adicional (misma ruta)\n- Evento de reputación **`badge_earned`** (+ puntos) una vez por concesión.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"badge_id\": \"{{badge_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{student_id}}/badges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students",
+                "{{student_id}}",
+                "badges"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201 or expected error\", function () {",
+                  "    pm.expect([201, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"badge_id\": \"00000000-0000-0000-0000-000000000001\" }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/students/{{student_id}}/badges",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students",
+                    "{{student_id}}",
+                    "badges"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"slug\": \"bookworm\",\n    \"name\": \"Bookworm\",\n    \"earned_at\": \"2026-04-16T12:30:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "DELETE STUDENT (deactivate)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "Marca **`is_active = false`**. Respuesta **204** sin cuerpo. El estudiante deja de listarse y los GET devuelven **404**.",
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{student_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "students",
+                "{{student_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 or 404\", function () {",
+                  "    pm.expect([204, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "204 - No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/students/{{student_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "students",
+                    "{{student_id}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "plain",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LOANS MODULE",
+      "description": "## Préstamos (staff)\n\nGestión de préstamos de ejemplares a estudiantes. JWT **`{{access_token}}`** heredado en esta carpeta.\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/loans` | Lista con filtros y paginación |\n| POST | `/api/loans` | Nuevo préstamo (`student_id`, `book_id`, `due_date`) |\n| PATCH | `/api/loans/:id/return` | Devolución (misma URL; ver efectos secundarios abajo) |\n\n### Query (GET)\n| Parámetro | Descripción |\n|-----------|-------------|\n| `status` | Opcional: `active`, `returned`, `overdue` |\n| `student_id` | Opcional: UUID del estudiante |\n| `limit` | Defecto **20**, máx. **100** |\n| `offset` | Defecto **0** |\n\n### Body (POST)\n- **`due_date`**: calendario **`YYYY-MM-DD`** (no en el pasado).\n\n### Devolución (`PATCH …/return`) — efectos en servidor\n- **Reputación:** evento de devolución a tiempo / tarde y actualización de `student_stats` (racha, puntos); hitos de racha 7/14/30 días si aplica.\n- **Multa automática (opcional):** si la fecha de devolución es **posterior al día de vencimiento** (UTC, comparación por día calendario), no hay ya una multa **pending** para ese préstamo y la multa automática **no** está desactivada en el servidor (`AUTO_LATE_RETURN_FINE_ENABLED`), se crea una multa **pending** (importe `AUTO_LATE_RETURN_FINE_AMOUNT`, por defecto **5**). El préstamo **sigue devolviendo 200** aunque falle la creación de multa (se loguea en servidor).\n- **`activity_log`:** entrada `book_returned` para el dashboard de analíticas.\n\n### Variables\n- Tras **CREATE LOAN**, la prueba guarda **`loan_id`** (campo JSON `loan_id`, no `id`).\n- Usa **`{{student_id}}`** y **`{{book_id}}`** de *CREATE STUDENT* / *CREATE BOOK*.\n- **Sanción activa:** si el estudiante tiene al menos una sanción **active** (`SANCTIONS MODULE`), **CREATE LOAN** responde **403** hasta levantarlas (*LIFT SANCTION*).\n\n### Job `overdue`\nEl servidor marca préstamos **active** como **overdue** cuando la fecha de vencimiento ya pasó (sincronización periódica).\n\n### Errores frecuentes\n| HTTP | Caso |\n|------|------|\n| **400** | Validación; `due_date` inválida; `student_id` query inválido |\n| **401** | Sin token / token inválido / staff inactivo |\n| **403** | Estudiante con **sanción activa**; no se registra el préstamo |\n| **404** | Préstamo, estudiante o libro inexistente |\n| **409** | Sin ejemplares disponibles; préstamo ya devuelto |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST LOANS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lista préstamos con paginación.\n\n### Respuesta\n`{ \"data\": [ LoanListItem... ], \"total\": N }` — cada ítem incluye `loan_id`, `book_id`, `book_title`, `borrower`, `due_date`, `time_remaining`, `isbn`, `status`.",
+            "url": {
+              "raw": "{{baseUrl}}/api/loans?limit=20&offset=0&status=&student_id=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "loans"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página (máx. 100)."
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento para paginación."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Opcional: active | returned | overdue"
+                },
+                {
+                  "key": "student_id",
+                  "value": "",
+                  "description": "Opcional: UUID del estudiante."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope data + total\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j).to.have.property(\"total\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/loans?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "loans"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n            \"book_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n            \"book_title\": \"Clean Architecture\",\n            \"borrower\": \"Ana Ruiz\",\n            \"due_date\": \"2026-12-31\",\n            \"time_remaining\": 45,\n            \"isbn\": \"978-0134494166\",\n            \"status\": \"active\"\n        }\n    ],\n    \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "CREATE LOAN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Crea un préstamo **active**. Requiere ejemplares disponibles del libro.\n\n### Body (JSON)\n- **`student_id`**, **`book_id`**: UUID.\n- **`due_date`**: **`YYYY-MM-DD`** (día de vencimiento).\n\nTras **201**, la prueba guarda **`loan_id`** (`loan_id` en la respuesta).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"book_id\": \"{{book_id}}\",\n  \"due_date\": \"2026-12-31\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "loans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"loan_id\", j.loan_id);",
+                  "    pm.test(\"loan_id is UUID\", function () {",
+                  "        pm.expect(j.loan_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    });",
+                  "}",
+                  "pm.test(\"Status is 201 or client error\", function () {",
+                  "    pm.expect([201, 400, 401, 403, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/loans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "loans"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"book_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"book_title\": \"Clean Architecture\",\n    \"borrower\": \"Ana Ruiz\",\n    \"borrowed_at\": \"2026-04-18T10:00:00Z\",\n    \"due_date\": \"2026-12-31\",\n    \"time_remaining\": 257,\n    \"isbn\": \"978-0134494166\",\n    \"status\": \"active\"\n}"
+            },
+            {
+              "name": "409 - No copies",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/loans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "loans"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"message\": \"No hay ejemplares disponibles\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "RETURN LOAN",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "description": "Marca el préstamo como **returned**. Usa **`{{loan_id}}`** (p. ej. tras *CREATE LOAN*).\n\n### Respuesta\nMismo shape que *CREATE LOAN* (**200**), con `status`: `returned`.\n\n### Comportamiento adicional (misma ruta que antes)\n- Reputación / rachas / posible hito de racha.\n- Posible multa **pending** automática si devolución **tarde** (ver descripción del módulo y variables de entorno del servidor).\n- Registro en `activity_log` para analíticas.",
+            "url": {
+              "raw": "{{baseUrl}}/api/loans/{{loan_id}}/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "loans",
+                "{{loan_id}}",
+                "return"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or client error\", function () {",
+                  "    pm.expect([200, 400, 401, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/loans/{{loan_id}}/return",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "loans",
+                    "{{loan_id}}",
+                    "return"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"book_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"book_title\": \"Clean Architecture\",\n    \"borrower\": \"Ana Ruiz\",\n    \"borrowed_at\": \"2026-04-18T10:00:00Z\",\n    \"due_date\": \"2026-12-31\",\n    \"time_remaining\": 0,\n    \"isbn\": \"978-0134494166\",\n    \"status\": \"returned\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FINES MODULE",
+      "description": "## Multas (staff)\n\nGestión de multas vinculadas a un **préstamo** y un **estudiante**. JWT **`{{access_token}}`** heredado en esta carpeta.\n\n### Flujo sugerido\n1. *CREATE STUDENT* y *CREATE BOOK* → *CREATE LOAN* (variables `student_id`, `book_id`, `loan_id`).\n2. *CREATE FINE* manual **o** multa **pending** creada por el servidor al **devolver tarde** un préstamo (*RETURN LOAN* + variables `AUTO_LATE_RETURN_FINE_*`).\n3. *GET FINE BY ID* o *MARK FINE PAID* / *MARK FINE WAIVED* (solo si la multa sigue en **pending**; no puedes pagar y condonar la misma multa).\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/fines` | Lista con filtros y paginación |\n| POST | `/api/fines` | Nueva multa (`loan_id`, `student_id`, `amount`, `reason` opcional) |\n| GET | `/api/fines/:id` | Detalle |\n| PATCH | `/api/fines/:id/paid` | Marcar como pagada (`paid_at` = ahora); **misma URL** — además registra reputación **`fine_paid`** (+ puntos, idempotente por multa) |\n| PATCH | `/api/fines/:id/waived` | Condonar (sin pago); **sin** evento `fine_paid` |\n\n### Query (GET lista)\n| Parámetro | Descripción |\n|-----------|-------------|\n| `student_id` | Opcional: UUID del estudiante |\n| `status` | Opcional: `pending`, `paid`, `waived` |\n| `limit` | Defecto **20**, máx. **100** |\n| `offset` | Defecto **0** |\n\n### Variables\n- Tras **CREATE FINE**, la prueba guarda **`fine_id`** (campo JSON **`id`**).\n- Solo puede existir **una multa pendiente por `loan_id`**; un segundo POST igual devuelve **409**.\n\n### Errores frecuentes\n| HTTP | Caso |\n|------|------|\n| **400** | Validación; multa ya no está `pending` al marcar pagada/condonada; `student_id` del préstamo no coincide con el body |\n| **401** | Sin token / token inválido / staff inactivo |\n| **404** | Multa o préstamo inexistente |\n| **409** | Ya hay multa **pending** para ese préstamo |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST FINES",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lista multas con paginación.\n\n### Respuesta\n`{ \"data\": [ FineListItem... ], \"total\": N }` — cada ítem incluye `id`, `loan_id`, `student_id`, `amount`, `status`, `reason`, `created_at`, `paid_at`, `student_name` (si hay JOIN con estudiante).",
+            "url": {
+              "raw": "{{baseUrl}}/api/fines?limit=20&offset=0&status=&student_id=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fines"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página (máx. 100)."
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento para paginación."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Opcional: pending | paid | waived"
+                },
+                {
+                  "key": "student_id",
+                  "value": "",
+                  "description": "Opcional: UUID del estudiante."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope data + total\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j).to.have.property(\"total\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines?limit=20&offset=0&status=pending",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    },
+                    {
+                      "key": "status",
+                      "value": "pending"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"id\": \"a4b5c6d7-e8f9-0123-4567-890abcdef012\",\n            \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n            \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n            \"amount\": 12.5,\n            \"status\": \"pending\",\n            \"reason\": \"Devolución tardía\",\n            \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n            \"paid_at\": null,\n            \"student_name\": \"Ana Ruiz\"\n        }\n    ],\n    \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "CREATE FINE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Crea una multa en estado **pending**. El préstamo debe existir y **`student_id` del body** debe coincidir con el del préstamo.\n\n### Body (JSON)\n- **`loan_id`**, **`student_id`**: UUID.\n- **`amount`**: número ≥ 0 (hasta 2 decimales en práctica).\n- **`reason`**: opcional (texto).\n\nTras **201**, la prueba guarda **`fine_id`** (`id` en la respuesta).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": \"{{loan_id}}\",\n  \"student_id\": \"{{student_id}}\",\n  \"amount\": 12.5,\n  \"reason\": \"Devolución tardía (ejemplo Postman)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fines"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"fine_id\", j.id);",
+                  "    pm.test(\"fine id is UUID\", function () {",
+                  "        pm.expect(j.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    });",
+                  "}",
+                  "pm.test(\"Status is 201 or client error\", function () {",
+                  "    pm.expect([201, 400, 401, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"a4b5c6d7-e8f9-0123-4567-890abcdef012\",\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"amount\": 12.5,\n    \"status\": \"pending\",\n    \"reason\": \"Devolución tardía\",\n    \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"paid_at\": null\n}"
+            },
+            {
+              "name": "409 - Duplicate pending",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Ya existe una multa pendiente para este préstamo\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET FINE BY ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Detalle de una multa por UUID.\n\nUsa **`{{fine_id}}`** (p. ej. tras *CREATE FINE*).",
+            "url": {
+              "raw": "{{baseUrl}}/api/fines/{{fine_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fines",
+                "{{fine_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 404\", function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines/{{fine_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines",
+                    "{{fine_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"a4b5c6d7-e8f9-0123-4567-890abcdef012\",\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"amount\": 12.5,\n    \"status\": \"pending\",\n    \"reason\": \"Devolución tardía\",\n    \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"paid_at\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "MARK FINE PAID",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "description": "Pasa la multa a **paid** y asigna **`paid_at`** a la hora del servidor.\n\nSolo aplica si `status` actual es **pending**.\n\n### Efecto adicional (misma ruta)\n- Una vez por multa: evento de reputación **`fine_paid`** (+ puntos en `student_stats`).",
+            "url": {
+              "raw": "{{baseUrl}}/api/fines/{{fine_id}}/paid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fines",
+                "{{fine_id}}",
+                "paid"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or client error\", function () {",
+                  "    pm.expect([200, 400, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines/{{fine_id}}/paid",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines",
+                    "{{fine_id}}",
+                    "paid"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"a4b5c6d7-e8f9-0123-4567-890abcdef012\",\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"amount\": 12.5,\n    \"status\": \"paid\",\n    \"reason\": \"Devolución tardía\",\n    \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"paid_at\": \"2026-04-18T14:30:00.000000000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "MARK FINE WAIVED",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "description": "Condona la multa (**waived**); **`paid_at`** queda en null.\n\nSolo si la multa está **pending**. Si ya ejecutaste *MARK FINE PAID* sobre la misma multa, crea otra con *CREATE FINE* (otro préstamo o tras resolver el 409) antes de probar esta petición.",
+            "url": {
+              "raw": "{{baseUrl}}/api/fines/{{fine_id}}/waived",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fines",
+                "{{fine_id}}",
+                "waived"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or client error\", function () {",
+                  "    pm.expect([200, 400, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/fines/{{fine_id}}/waived",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "fines",
+                    "{{fine_id}}",
+                    "waived"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"id\": \"a4b5c6d7-e8f9-0123-4567-890abcdef012\",\n    \"loan_id\": \"f3a4b5c6-d7e8-9012-f123-456789012cde\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"amount\": 12.5,\n    \"status\": \"waived\",\n    \"reason\": \"Condonación administrativa\",\n    \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"paid_at\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SANCTIONS MODULE",
+      "description": "## Sanciones (staff)\n\nRegistro disciplinario sobre un **estudiante activo** (restricción / lista de sancionados). JWT **`{{access_token}}`** heredado en esta carpeta.\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/sanctions` | Lista solo sanciones **active** (con datos del estudiante) |\n| POST | `/api/sanctions` | Aplicar sanción (`student_id`, `reason`); **misma URL** — además reputación **`sanction_received`** (penalización de puntos, idempotente por sanción) |\n| PATCH | `/api/sanctions/:id` | Levantar sanción (`status` → **lifted**). Body opcional: `{\"status\":\"lifted\"}` o vacío |\n\n### Reglas\n- **`applied_by`** al crear y **`lifted_by`** al levantar salen del **usuario del JWT**, no del body.\n- Puede haber **varias sanciones activas** por estudiante (cada fila en el listado es una sanción).\n- El listado **no** incluye sanciones ya **lifted**.\n\n### Variables\n- Tras **CREATE SANCTION**, la prueba guarda **`sanction_id`** (`sanction_id` en JSON de respuesta).\n\n### Errores frecuentes\n| HTTP | Caso |\n|------|------|\n| **400** | Validación (`reason` vacío, etc.) |\n| **401** | Sin token / token inválido / staff inactivo |\n| **404** | Estudiante inactivo o inexistente al crear; sanción inexistente o ya levantada al PATCH |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST SANCTIONS (active)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lista sanciones con **`status = active`** y estudiante activo (`is_active`), orden **`applied_at DESC`**.\n\n### Respuesta\n`{ \"data\": [ SanctionListItem... ], \"total\": N }`",
+            "url": {
+              "raw": "{{baseUrl}}/api/sanctions?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sanctions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Tamaño de página (máx. 100)."
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Desplazamiento para paginación."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Envelope data + total\", function () {",
+                  "    pm.expect(j).to.have.property(\"data\");",
+                  "    pm.expect(j).to.have.property(\"total\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sanctions?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "sanctions"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"data\": [\n        {\n            \"sanction_id\": \"b5c6d7e8-f9a0-1234-5678-90abcdef0123\",\n            \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n            \"student_id_code\": \"AUTO-20260418-a1b2c3d4\",\n            \"first_name\": \"Ana\",\n            \"last_name\": \"Ruiz\",\n            \"email\": \"ana@example.com\",\n            \"reason\": \"Reincidencia en devoluciones tardías\",\n            \"applied_at\": \"2026-04-18T12:00:00.000000000Z\",\n            \"applied_by_id\": \"10000000-0000-4000-8000-000000000099\"\n        }\n    ],\n    \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "CREATE SANCTION",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Crea una sanción **`active`**. El estudiante debe existir y estar **activo**.\n\n### Body\n- **`student_id`**: UUID.\n- **`reason`**: texto obligatorio (1–2000 caracteres).\n\nTras **201**, la prueba guarda **`sanction_id`** (`sanction_id` en la respuesta).\n\n### Efecto adicional (misma ruta)\n- Evento de reputación **`sanction_received`** (penalización de puntos, idempotente por `sanction_id`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"reason\": \"Reincidencia en devoluciones tardías (ejemplo Postman)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sanctions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sanctions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"sanction_id\", j.sanction_id);",
+                  "    pm.test(\"sanction_id is UUID\", function () {",
+                  "        pm.expect(j.sanction_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    });",
+                  "}",
+                  "pm.test(\"Status is 201 or client error\", function () {",
+                  "    pm.expect([201, 400, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 - Created (example)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/sanctions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "sanctions"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"sanction_id\": \"b5c6d7e8-f9a0-1234-5678-90abcdef0123\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"student_id_code\": \"AUTO-20260418-a1b2c3d4\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Ruiz\",\n    \"email\": \"ana@example.com\",\n    \"reason\": \"Reincidencia en devoluciones tardías\",\n    \"status\": \"active\",\n    \"applied_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"applied_by_id\": \"10000000-0000-4000-8000-000000000099\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "LIFT SANCTION",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Levanta la sanción: **`lifted`**, con **`lifted_at`** y **`lifted_by`** desde el servidor y el JWT.\n\nBody opcional: `{\"status\":\"lifted\"}` o cuerpo vacío. Usa **`{{sanction_id}}`**.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"lifted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sanctions/{{sanction_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sanctions",
+                "{{sanction_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or client error\", function () {",
+                  "    pm.expect([200, 400, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"status\":\"lifted\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/sanctions/{{sanction_id}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "sanctions",
+                    "{{sanction_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"sanction_id\": \"b5c6d7e8-f9a0-1234-5678-90abcdef0123\",\n    \"student_id\": \"e2f3a4b5-c6d7-8901-ef12-345678901bcd\",\n    \"student_id_code\": \"AUTO-20260418-a1b2c3d4\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Ruiz\",\n    \"email\": \"ana@example.com\",\n    \"reason\": \"Reincidencia en devoluciones tardías\",\n    \"status\": \"lifted\",\n    \"applied_at\": \"2026-04-18T12:00:00.000000000Z\",\n    \"applied_by_id\": \"10000000-0000-4000-8000-000000000099\",\n    \"lifted_at\": \"2026-04-18T15:00:00.000000000Z\",\n    \"lifted_by_id\": \"10000000-0000-4000-8000-000000000099\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ANALYTICS MODULE",
+      "description": "## Dashboard de analíticas (staff)\n\nSolo lectura: agregados para panel. Misma autenticación que el resto de **`/api/*`**: **`Authorization: Bearer {{access_token}}`** con usuario **admin** o **librarian** activo.\n\n### Ruta\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/analytics/dashboard` | `total_books`, `active_students`, `overdue_fines` (suma multas **pending**), `most_borrowed_books`, `recent_activity` |\n\n### Query\n| Parámetro | Descripción |\n|-----------|-------------|\n| `most_borrowed_limit` | Opcional; por defecto **5**, máximo **20** |\n| `recent_activity_limit` | Opcional; por defecto **10**, máximo **50** |\n\n### Errores\n| HTTP | Caso |\n|------|------|\n| **401** | Sin token / token inválido / staff inactivo |\n| **500** | Error interno (mensaje genérico) |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "GET ANALYTICS DASHBOARD",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Respuesta **200**: objeto plano con las cinco métricas. Límites de listas aplican valores por defecto del servidor si omites query.",
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "dashboard"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 401\", function () {",
+                  "    pm.expect([200, 401]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    pm.test(\"Dashboard fields\", function () {",
+                  "        pm.expect(j).to.have.property(\"total_books\");",
+                  "        pm.expect(j).to.have.property(\"active_students\");",
+                  "        pm.expect(j).to.have.property(\"overdue_fines\");",
+                  "        pm.expect(j).to.have.property(\"most_borrowed_books\");",
+                  "        pm.expect(j).to.have.property(\"recent_activity\");",
+                  "        pm.expect(j.most_borrowed_books).to.be.an(\"array\");",
+                  "        pm.expect(j.recent_activity).to.be.an(\"array\");",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 - OK (example)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/analytics/dashboard",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "analytics",
+                    "dashboard"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"total_books\": 42,\n    \"active_students\": 15,\n    \"overdue_fines\": 125.5,\n    \"most_borrowed_books\": [\n        {\n            \"book_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n            \"title\": \"Ejemplo\",\n            \"catalog_code\": \"CAT-001\",\n            \"borrow_count\": 10,\n            \"author_names\": [\"Autor Uno\"]\n        }\n    ],\n    \"recent_activity\": [\n        {\n            \"id\": \"f1e2d3c4-b5a6-9876-5432-10fedcba9876\",\n            \"event_type\": \"loan.created\",\n            \"title\": \"Nuevo préstamo\",\n            \"description\": null,\n            \"metadata\": {},\n            \"created_at\": \"2026-04-18T12:00:00.000000000Z\",\n            \"actor_name\": \"María García\",\n            \"student_name\": \"Ana Ruiz\"\n        }\n    ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET ANALYTICS DASHBOARD (custom limits)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Mismas métricas con límites explícitos (el servidor acota a máx. 20 / 50).",
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/dashboard?most_borrowed_limit=10&recent_activity_limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "most_borrowed_limit",
+                  "value": "10",
+                  "description": "Máximo 20."
+                },
+                {
+                  "key": "recent_activity_limit",
+                  "value": "25",
+                  "description": "Máximo 50."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 401\", function () {",
+                  "    pm.expect([200, 401]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "BADGES MODULE (definiciones)",
+      "description": "## Insignias — definiciones (staff)\n\nCRUD de la tabla **`badges`** (plantillas). **`POST /api/students/:id/badges`** concede una insignia ya definida a un estudiante (módulo *STUDENTS*).\n\nJWT **`{{access_token}}`** heredado en esta carpeta.\n\n### Rutas\n| Método | Ruta | Uso |\n|--------|------|-----|\n| GET | `/api/badges` | Lista definiciones (`{ \"data\": [...] }`) |\n| POST | `/api/badges` | Crear (`slug`, `name`, opcionales `icon_url`, `description`, `criteria`) |\n| GET | `/api/badges/:id` | Detalle por UUID |\n| PATCH | `/api/badges/:id` | Parcial; `slug` único |\n| DELETE | `/api/badges/:id` | **204** si OK; **409** si hay filas en `student_badges` |\n\n### Variables\n- *LIST BADGES* o *CREATE BADGE DEFINITION* pueden rellenar **`badge_definition_id`** y **`badge_id`** (mismo UUID que `id` de la insignia) para *AWARD BADGE*.\n\n### Errores\n| HTTP | Caso |\n|------|------|\n| **400** | Validación |\n| **401** | Sin token staff |\n| **404** | Insignia inexistente |\n| **409** | `slug` duplicado; DELETE con insignia ya otorgada |\n| **500** | Error interno |",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "LIST BADGES (definitions)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lista todas las definiciones de insignias, orden por `slug`.\n\nSi hay al menos un elemento, la prueba guarda **`badge_definition_id`** y **`badge_id`** con el `id` del primero (útil para *AWARD BADGE*).",
+            "url": {
+              "raw": "{{baseUrl}}/api/badges",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "badges"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 401\", function () {",
+                  "    pm.expect([200, 401]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    pm.test(\"data array\", function () {",
+                  "        pm.expect(j).to.have.property(\"data\");",
+                  "        pm.expect(j.data).to.be.an(\"array\");",
+                  "    });",
+                  "    if (j.data && j.data.length > 0 && j.data[0].id) {",
+                  "        pm.collectionVariables.set(\"badge_definition_id\", j.data[0].id);",
+                  "        pm.collectionVariables.set(\"badge_id\", j.data[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "CREATE BADGE DEFINITION",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Crea una definición. **`slug`** único (50 chars máx.), **`name`** obligatorio.\n\nTras **201**, la prueba guarda **`badge_definition_id`** y **`badge_id`** (`id` en JSON).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"postman-demo-badge\",\n  \"name\": \"Demo Postman\",\n  \"description\": \"Creada desde la colección\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/badges",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "badges"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201 or 4xx\", function () {",
+                  "    pm.expect([201, 400, 401, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    if (j.id) {",
+                  "        pm.collectionVariables.set(\"badge_definition_id\", j.id);",
+                  "        pm.collectionVariables.set(\"badge_id\", j.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET BADGE DEFINITION BY ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Detalle de una definición. Usa **`{{badge_definition_id}}`** (o `{{badge_id}}`).",
+            "url": {
+              "raw": "{{baseUrl}}/api/badges/{{badge_definition_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "badges", "{{badge_definition_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 401 or 404\", function () {",
+                  "    pm.expect([200, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH BADGE DEFINITION",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "description": "Actualización parcial (todos los campos opcionales).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Postman (editado)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/badges/{{badge_definition_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "badges", "{{badge_definition_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200, 400, 401, 404 or 409\", function () {",
+                  "    pm.expect([200, 400, 401, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE BADGE DEFINITION",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "Elimina la definición solo si **ningún** estudiante tiene esa insignia. Si ya fue otorgada → **409**.\n\n**204** sin cuerpo si tiene éxito.",
+            "url": {
+              "raw": "{{baseUrl}}/api/badges/{{badge_definition_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "badges", "{{badge_definition_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204, 401, 404 or 409\", function () {",
+                  "    pm.expect([204, 401, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

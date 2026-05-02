@@ -1,0 +1,24 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output
+/library_back
+
+# Go workspace
+go.work
+
+# Local env (secrets)
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
