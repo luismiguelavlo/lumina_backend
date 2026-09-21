@@ -15,6 +15,7 @@ import (
 	"library_back/internal/services/student"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"library_back/internal/handlers"
@@ -191,7 +192,15 @@ func main() {
 		api.GET("/analytics/dashboard", analyticsHandler.Dashboard)
 	}
 
-	_ = r.Run(":8080")
+	addr := ":8080"
+	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
+		if !strings.HasPrefix(p, ":") {
+			p = ":" + p
+		}
+		addr = p
+	}
+	log.Printf("http: listening on %s", addr)
+	_ = r.Run(addr)
 }
 
 func startBlacklistCleanup(repo repositories.RevokedTokenRepository) {
