@@ -20,6 +20,7 @@ import (
 
 	"library_back/internal/handlers"
 	"library_back/internal/jobs"
+	"library_back/internal/pkg/cloudinary"
 	"library_back/internal/pkg/database"
 	"library_back/internal/pkg/ratelimit"
 	"library_back/internal/repositories"
@@ -114,6 +115,15 @@ func main() {
 	badgeAdminHandler := handlers.NewBadgeAdminHandler(badgeDefSvc)
 	staffAPI := handlers.StaffBearerMiddleware(tokenSvc, userRepo)
 
+	var mediaUploader cloudinary.Uploader
+	if cl, err := cloudinary.ConfigFromEnv(); err != nil {
+		log.Printf("cloudinary: uploads disabled (%v)", err)
+	} else {
+		mediaUploader = cl
+		log.Println("cloudinary: uploads enabled")
+	}
+	uploadHandler := handlers.NewUploadHandler(mediaUploader)
+
 	startBlacklistCleanup(revokedRepo)
 	startLoanOverdueSync(loanRepo)
 	startGlobalRankSync(orm)
@@ -152,6 +162,8 @@ func main() {
 
 	api := r.Group("/api", staffAPI)
 	{
+		api.POST("/uploads", uploadHandler.Create)
+
 		api.GET("/departments", departmentHandler.List)
 
 		api.POST("/students", studentHandler.Create)
