@@ -51,6 +51,86 @@ func (r *analyticsRepositoryGorm) OverdueFinesTotal(ctx context.Context) (float6
 	return f, nil
 }
 
+func (r *analyticsRepositoryGorm) PendingFinesCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&models.Fine{}).
+		Where("status = ?", models.FineStatusPending).
+		Count(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) OverdueLoansCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&models.Loan{}).
+		Where("status = ?", models.LoanStatusOverdue).
+		Count(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) ActiveLoansCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&models.Loan{}).
+		Where("status IN ?", []models.LoanStatus{models.LoanStatusActive, models.LoanStatusOverdue}).
+		Count(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) DueSoonCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Raw(`
+SELECT COUNT(*) FROM loans
+WHERE status = ?
+  AND due_date::date >= CURRENT_DATE
+  AND due_date::date <= CURRENT_DATE + INTERVAL '7 days'
+`, models.LoanStatusActive).Scan(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) ActiveSanctionsCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&models.Sanction{}).
+		Where("status = ?", models.SanctionStatusActive).
+		Count(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) ReturnsThisWeekCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Raw(`
+SELECT COUNT(*) FROM loans
+WHERE status = ?
+  AND returned_at IS NOT NULL
+  AND returned_at >= NOW() - INTERVAL '7 days'
+`, models.LoanStatusReturned).Scan(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) NewStudentsThisMonthCount(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Raw(`
+SELECT COUNT(*) FROM students
+WHERE created_at >= date_trunc('month', NOW())
+`).Scan(&n).Error
+	return n, err
+}
+
+func (r *analyticsRepositoryGorm) CopyAvailabilityTotals(ctx context.Context) (available, checkedOut int64, err error) {
+	type row struct {
+		Available  int64 `gorm:"column:available"`
+		CheckedOut int64 `gorm:"column:checked_out"`
+	}
+	var out row
+	err = r.db.WithContext(ctx).Raw(`
+SELECT
+  COALESCE(SUM(ba.available_copies), 0) AS available,
+  COALESCE(SUM(ba.checked_out), 0) AS checked_out
+FROM book_availability ba
+JOIN books b ON b.id = ba.book_id
+WHERE b.deleted_at IS NULL
+`).Scan(&out).Error
+	return out.Available, out.CheckedOut, err
+}
+
 type mostBorrowedScan struct {
 	BookID      string `gorm:"column:book_id"`
 	Title       string `gorm:"column:title"`
@@ -153,6 +233,55 @@ LIMIT ?`
 			item.StudentName = &sn
 		}
 		out = append(out, item)
+	}
+	return out, nil
+}
+
+type topOverdueScan struct {
+	LoanID      string    `gorm:"column:loan_id"`
+	StudentID   string    `gorm:"column:student_id"`
+	StudentName string    `gorm:"column:student_name"`
+	StudentCode string    `gorm:"column:student_code"`
+	BookID      string    `gorm:"column:book_id"`
+	BookTitle   string    `gorm:"column:book_title"`
+	DueDate     time.Time `gorm:"column:due_date"`
+	DaysOverdue int       `gorm:"column:days_overdue"`
+}
+
+func (r *analyticsRepositoryGorm) TopOverdueLoans(ctx context.Context, limit int) ([]models.TopOverdueItem, error) {
+	const q = `
+SELECT
+  l.id::text AS loan_id,
+  s.id::text AS student_id,
+  TRIM(COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '')) AS student_name,
+  COALESCE(s.student_id_code, '') AS student_code,
+  b.id::text AS book_id,
+  b.title AS book_title,
+  l.due_date,
+  GREATEST(0, (CURRENT_DATE - l.due_date::date))::int AS days_overdue
+FROM loans l
+JOIN students s ON s.id = l.student_id
+JOIN books b ON b.id = l.book_id
+WHERE l.status = ?
+ORDER BY l.due_date ASC, l.id ASC
+LIMIT ?`
+
+	var rows []topOverdueScan
+	if err := r.db.WithContext(ctx).Raw(q, models.LoanStatusOverdue, limit).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]models.TopOverdueItem, 0, len(rows))
+	for i := range rows {
+		out = append(out, models.TopOverdueItem{
+			LoanID:      rows[i].LoanID,
+			StudentID:   rows[i].StudentID,
+			StudentName: strings.TrimSpace(rows[i].StudentName),
+			StudentCode: strings.TrimSpace(rows[i].StudentCode),
+			BookID:      rows[i].BookID,
+			BookTitle:   rows[i].BookTitle,
+			DueDate:     rows[i].DueDate.UTC(),
+			DaysOverdue: rows[i].DaysOverdue,
+		})
 	}
 	return out, nil
 }

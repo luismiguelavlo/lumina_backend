@@ -31,6 +31,7 @@ func (h *AnalyticsHandler) Dashboard(c *gin.Context) {
 	limits := models.DashboardLimits{
 		MostBorrowedLimit:   parsePositiveIntQuery(c.Query("most_borrowed_limit"), 0),
 		RecentActivityLimit: parsePositiveIntQuery(c.Query("recent_activity_limit"), 0),
+		TopOverdueLimit:     parsePositiveIntQuery(c.Query("top_overdue_limit"), 0),
 	}
 	out, err := h.svc.GetDashboard(c.Request.Context(), limits)
 	if err != nil {
